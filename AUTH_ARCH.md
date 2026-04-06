@@ -6,55 +6,77 @@ This project implements a secure, scalable, and modern authentication system usi
 
 ```mermaid
 sequenceDiagram
+    autonumber
     participant U as User (Frontend)
     participant B as Backend API
+    participant M as Auth Middleware
     participant D as PostgreSQL
     participant S as WebSocket (Socket.IO)
 
+    Note over U, D: Registration Flow
     U->>B: POST /auth/register (Credentials)
     B->>D: Hash Password & Store User
     B-->>U: HTTP 201 + Set-Cookie (JWT - httpOnly)
-    
-    U->>B: GET /auth/me (Cookie)
-    B->>B: Verify JWT Signature
-    B-->>U: HTTP 200 (User Profile)
-    
-    U->>S: Handshake (Cookie)
-    S->>S: Verify JWT from Handshake Headers
-    S-->>U: Connected (Authorized)
+
+    Note over U, D: Login Flow
+    U->>B: POST /auth/login (Credentials)
+    B->>D: Fetch User & Bcrypt Compare
+    alt Invalid Credentials
+        B-->>U: HTTP 401 (Unauthorized)
+    else Success
+        B-->>U: HTTP 200 + Set-Cookie (JWT - httpOnly)
+    end
+
+    Note over U, S: Protected Resource / Handshake
+    U->>M: GET /auth/me (Cookie auto-sent)
+    M->>M: Extract JWT & Verify Signature
+    alt Invalid/Expired Token
+        M-->>U: HTTP 401 (Unauthorized)
+    else Valid
+        M->>B: Attach {userId, username} to Req
+        B-->>U: HTTP 200 (User Profile)
+    end
+
+    U->>S: WS Handshake (Cookie in Headers)
+    S->>S: Verify JWT from Handshake
+    alt Verification Failed
+        S-->>U: Connection Rejected
+    else Success
+        S-->>U: Connected (Authorized)
+    end
 ```
 
-## 2. Tech Stack
-- **Database**: PostgreSQL (User persistence)
-- **Hashing**: Bcryptjs (Password encryption)
-- **Tokenization**: JSON Web Token (JWT)
-- **Transport**: HttpOnly Cookies (Secure session management)
+## 2. Technical Implementation Details
 
-## 2. The Flow
+### A. JWT Payload Structure
+The system uses a compact JWT payload to minimize cookie size while providing sufficient context for the backend:
+- `userId`: UUID of the user (used for database lookups).
+- `username`: Current display name (used for real-time message attribution).
+- `email`: User's unique identifier.
 
-### A. Registration
-1. Frontend sends `username`, `email`, and `password` via `POST /api/auth/register`.
-2. Backend validates data, hashes the password using **Bcrypt**, and saves the user to PostgreSQL.
-3. A JWT is signed (containing `userId` and `username`) and attached to the response via a `Set-Cookie` header.
+### B. Security Design Choices
+- **HttpOnly Cookies**: Prevents client-side scripts from accessing the token, providing robust protection against **XSS**.
+- **SameSite: Lax**: Ensures session cookies are sent during safe, top-level navigations but blocked for cross-site sub-requests (CSRF protection).
+- **Secure Flag**: Enabled in production to ensure tokens are only transmitted over HTTPS.
 
-### B. Login
-1. Frontend sends credentials.
-2. Backend verifies the email exists and compares the hashed password.
-3. On success, a new JWT is issued and stored in an **HttpOnly cookie**.
+### C. The Middleware Layer
+Authentication is decentralized into a reusable **Auth Middleware**:
+1. **Extraction**: Reads `token` from `req.cookies`.
+2. **Validation**: Uses `jwt.verify()` with a secure environment secret.
+3. **Hydration**: Attaches the decoded user data to `req.user` (Express) or `socket.user` (Socket.IO).
+4. **Failure Handling**: Explicitly returns `401 Unauthorized` for missing, expired, or malformed tokens.
 
-### C. Session Persistence & Protection
-- **Backend Middleware**: Every request to a protected route passes through `authMiddleware`. It reads the cookie, verifies the JWT signature, and attaches the user object to the request.
-- **Frontend AuthContext**: On initial load, the React app calls `/api/auth/me`. If a valid cookie exists, the user is logged in automatically. If not, they are redirected to `/login`.
+### D. WebSocket Handshake Authorization
+Unlike standard APIs, WebSockets are authorized during the initial **HTTP upgrade (Handshake)**. 
+- The browser automatically includes the HttpOnly cookie in the handshake headers.
+- The server interceptor validates the cookie *before* the socket moves to the `connected` state.
+- This prevents "ghost" connections from unauthorized clients, saving server resources.
 
-## 3. Security Design Choices
-- **Credential Inclusion**: All `fetch` calls use `credentials: 'include'` to ensure the browser sends the session cookie during cross-origin requests.
-- **XSS Prevention**: By using `httpOnly`, the JWT cannot be stolen via malicious scripts.
-- **CSRF Mitigation**: Uses `SameSite: Lax` to ensure cookies are only sent during safe, top-level navigations.
-
-## 4. Endpoints
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| POST | `/api/auth/register` | Create a new account |
-| POST | `/api/auth/login` | Authenticate and set cookie |
-| POST | `/api/auth/logout` | Clear the session cookie |
-| GET | `/api/auth/me` | Return current user data (Verified) |
+## 3. Endpoints Matrix
+| Method | Endpoint | Auth | Description | Failure Path |
+| :--- | :--- | :--- | :--- | :--- |
+| POST | `/api/auth/register` | No | Creates new account & sets cookie | 400 (Validation/Conflict) |
+| POST | `/api/auth/login` | No | Verifies credentials & sets cookie | 401 (Invalid Credentials) |
+| POST | `/api/auth/logout` | Yes | Clears the session cookie | 401 (Session Expired) |
+| GET | `/api/auth/me` | Yes | Returns identity of current session | 401 (No Token/Invalid) |
+| POST | `/api/upload/upload`| Yes | Secure file upload to server | 401 (Unauthorized) |
