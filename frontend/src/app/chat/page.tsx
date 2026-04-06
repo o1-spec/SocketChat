@@ -43,7 +43,7 @@ export default function ChatPage() {
     setIsLoggingOut(true);
     try {
       await apiFetch('/auth/logout', { method: 'POST' });
-      await checkAuth(); // This will trigger the redirect in AuthContext
+      await checkAuth(); 
       toast.success("Logged out successfully");
     } catch (err) {
       toast.error("Logout failed");
@@ -57,7 +57,6 @@ export default function ChatPage() {
   useEffect(() => {
     if (!user) return;
 
-    // Fetch message history
     const fetchHistory = async () => {
       try {
         const history = await apiFetch('/channels/general/messages');
@@ -74,12 +73,11 @@ export default function ChatPage() {
     });
     setSocket(newSocket);
 
-    // Join the general channel by default
     newSocket.on('connect', () => {
-      newSocket.emit('join_channel', 'general');
+      newSocket.emit('channel.join', 'general');
     });
 
-    newSocket.on('message', (message: Message) => {
+    newSocket.on('message.new', (message: Message) => {
       setMessages((prev) => [...prev, message]);
     });
 
@@ -95,7 +93,7 @@ export default function ChatPage() {
   const sendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (input.trim() && socket && user) {
-      socket.emit('message', {
+      socket.emit('message.send', {
         text: input,
         sender: user.username,
         channel: 'general'
@@ -123,7 +121,7 @@ export default function ChatPage() {
       
       const data = await response.json();
       
-      socket.emit('message', {
+      socket.emit('message.send', {
         text: `Shared a file: ${file.name}`,
         sender: user.username,
         channel: 'general',

@@ -1,12 +1,11 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 import { validate } from 'class-validator';
 import { RegisterDto, LoginDto } from '../models/User';
 import pool from '../config/db';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { signToken } from '../config/auth';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const COOKIE_NAME = 'token';
 
 export const registerUser = async (req: Request, res: Response) => {
@@ -34,11 +33,11 @@ export const registerUser = async (req: Request, res: Response) => {
     );
 
     const user = newUser.rows[0];
-    const token = jwt.sign(
-      { userId: user.id, email: user.email, username: user.username },
-      JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+    const token = signToken({
+      userId: user.id,
+      email: user.email,
+      username: user.username,
+    });
 
     res.cookie(COOKIE_NAME, token, {
       httpOnly: true,
@@ -78,11 +77,11 @@ export const loginUser = async (req: Request, res: Response) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    const token = jwt.sign(
-      { userId: user.id, email: user.email, username: user.username },
-      JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+    const token = signToken({
+      userId: user.id,
+      email: user.email,
+      username: user.username,
+    });
 
     res.cookie(COOKIE_NAME, token, {
       httpOnly: true,
@@ -108,7 +107,7 @@ export const logoutUser = (req: Request, res: Response) => {
 
 export const getMe = async (req: AuthRequest, res: Response) => {
   try {
-    const result = await pool.query('SELECT id, username, email FROM users WHERE id = $1', [req.user?.id]);
+    const result = await pool.query('SELECT id, username, email FROM users WHERE id = $1', [req.user?.userId]);
     if (result.rows.length === 0) {
       return res.status(404).json({ message: 'User not found' });
     }

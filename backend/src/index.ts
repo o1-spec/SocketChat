@@ -9,6 +9,7 @@ import authRoutes from './routes/auth.routes';
 import channelRoutes from './routes/channel.routes';
 import uploadRoutes from './routes/upload.routes';
 import { createTables } from './models/init';
+import { errorHandler } from './middleware/error.middleware';
 
 dotenv.config();
 
@@ -26,10 +27,8 @@ app.use(cookieParser());
 
 createTables();
 
-// Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/channels', channelRoutes);
 app.use('/api/upload', uploadRoutes);
@@ -38,6 +37,8 @@ app.use('/api/upload', uploadRoutes);
 app.get('/health', (req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 4000;
 server.listen(PORT, () => {

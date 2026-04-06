@@ -1,10 +1,8 @@
 import { Server } from 'socket.io';
 import http from 'http';
-import jwt from 'jsonwebtoken';
 import cookie from 'cookie';
 import pool from '../config/db';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+import { verifyToken, JwtPayload } from '../config/auth';
 
 export const setupSocket = (server: http.Server) => {
   const io = new Server(server, {
@@ -24,14 +22,9 @@ export const setupSocket = (server: http.Server) => {
       const token = parsedCookies.token;
       if (!token) return next(new Error('Authentication error: No token'));
 
-      const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; email: string; username: string };
+      const decoded = verifyToken(token);
       
-      // Attach user info to socket
-      (socket as any).user = {
-        id: decoded.userId,
-        email: decoded.email,
-        username: decoded.username
-      };
+      (socket as any).user = decoded;
       
       next();
     } catch (err) {
@@ -43,32 +36,32 @@ export const setupSocket = (server: http.Server) => {
     const user = (socket as any).user;
     console.log(`User connected: ${user.username} (${socket.id})`);
 
-    // Handle joining a channel (room)
-    socket.on('join_channel', (channelName: string) => {
+    socket.on('channel.join', (channelName: string) => {
       socket.join(channelName);
       console.log(`User ${user.username} joined channel: ${channelName}`);
     });
 
-    socket.on('message', async (data) => {
+    socket.on('message.send', async (data) => {
       console.log('Message received:', data);
       
       try {
-        // 1. Get channel ID
-        const channelResult = await pool.query('SELECT id FROM channels WHERE name = $1', [data.channel || 'general']);
+        // Validation
+        if (!data?.text || typeof data.text !== 'string') return;
+        if (!data?.channel || typeof data.channel !== 'string') return;
+
+        const channelResult = await pool.query('SELECT id FROM channels WHERE name = $1', [data.channel]);
         const channelId = channelResult.rows[0]?.id;
 
         if (!channelId) return;
 
-        // 2. Persist to database
         const result = await pool.query(
           'INSERT INTO messages (channel_id, user_id, content) VALUES ($1, $2, $3) RETURNING *',
-          [channelId, user.id, data.text]
+          [channelId, user.userId, data.text]
         );
 
         const savedMessage = result.rows[0];
 
-        // 3. Broadcast to the room
-        io.to(data.channel || 'general').emit('message', {
+        io.to(data.channel).emit('message.new', {
           id: savedMessage.id,
           text: savedMessage.content,
           sender: user.username,
