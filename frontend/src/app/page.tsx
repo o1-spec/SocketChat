@@ -2,8 +2,42 @@ import Link from 'next/link';
 import { MessageSquare, Shield, Zap, ArrowRight } from 'lucide-react';
 
 export default function Home() {
+  const isAuthenticated = false;
+
   return (
     <main className="min-h-screen bg-white">
+      {/* Navigation */}
+      <nav className="absolute top-0 w-full z-20 px-6 py-6 flex justify-between items-center max-w-7xl mx-auto left-0 right-0">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+            <MessageSquare size={18} className="text-white" strokeWidth={2.5} />
+          </div>
+          <span className="font-bold text-xl tracking-tight text-gray-900">SocketChat</span>
+        </div>
+        <div className="flex items-center gap-4 sm:gap-6">
+          {!isAuthenticated ? (
+            <>
+              <Link href="/login" className="text-sm font-semibold text-gray-600 hover:text-gray-900 transition">
+                Sign in
+              </Link>
+              <Link 
+                href="/register" 
+                className="text-sm font-semibold bg-blue-600 text-white px-5 py-2.5 rounded-full hover:bg-gray-800 transition shadow-sm active:scale-95"
+              >
+                Get Started
+              </Link>
+            </>
+          ) : (
+            <Link 
+              href="/chat" 
+              className="text-sm font-semibold bg-blue-600 text-white px-5 py-2.5 rounded-full hover:bg-blue-500 transition shadow-sm active:scale-95"
+            >
+              Go to Chat
+            </Link>
+          )}
+        </div>
+      </nav>
+
       {/* Hero Section */}
       <div className="relative isolate px-6 pt-14 lg:px-8 bg-linear-to-b from-blue-50 to-white">
         <div className="mx-auto max-w-2xl py-32 sm:py-48 lg:py-56">
@@ -19,10 +53,10 @@ export default function Home() {
             </p>
             <div className="mt-10 flex items-center justify-center gap-x-6">
               <Link
-                href="/chat"
+                href={isAuthenticated ? "/chat" : "/register"}
                 className="rounded-full bg-blue-600 px-8 py-4 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-blue-600 flex items-center gap-2 transition-all hover:gap-3"
               >
-                Start Chatting <ArrowRight size={18} />
+                {isAuthenticated ? "Go to Dashboard" : "Start Chatting"} <ArrowRight size={18} />
               </Link>
               <a href="#features" className="text-sm font-semibold leading-6 text-gray-900">
                 Learn more <span aria-hidden="true">→</span>
