@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import { setupSocket } from './socket';
 import authRoutes from './routes/auth.routes';
+import channelRoutes from './routes/channel.routes';
 import { createTables } from './models/init';
 
 dotenv.config();
@@ -25,6 +26,7 @@ createTables();
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/channels', channelRoutes);
 
 // Health check
 app.get('/health', (req: Request, res: Response) => {

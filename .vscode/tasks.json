@@ -1,0 +1,31 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "1. Start Infrastructure (Docker)",
+			"type": "shell",
+			"command": "docker compose up -d",
+			"group": "build"
+		},
+		{
+			"label": "2. Run Backend (Dev Mode)",
+			"type": "shell",
+			"command": "cd backend && npm run dev",
+			"isBackground": true,
+			"problemMatcher": [
+				"$tsc-watch"
+			],
+			"group": "test"
+		},
+		{
+			"label": "3. Run Frontend (Dev Mode)",
+			"type": "shell",
+			"command": "cd frontend && npm run dev",
+			"isBackground": true,
+			"problemMatcher": [
+				"$next-js"
+			],
+			"group": "test"
+		}
+	]
+}

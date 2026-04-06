@@ -3,7 +3,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { io, Socket } from 'socket.io-client';
-import { Send, User, Hash, Settings, Search, MoreVertical, Paperclip, Smile, LogOut, X, AlertTriangle, MessageSquare } from 'lucide-react';
+import { Send, User, Hash, Settings, Search, MoreVertical, Paperclip, Smile, LogOut, X, AlertTriangle, MessageSquare, Loader2 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { apiFetch } from '@/lib/api';
+import { toast } from 'sonner';
 
 interface Message {
   id: string;
@@ -14,25 +17,57 @@ interface Message {
 
 export default function ChatPage() {
   const router = useRouter();
+  const { user, isLoading: authLoading, checkAuth } = useAuth();
   const [socket, setSocket] = useState<Socket | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
-  const [username, setUsername] = useState('User_' + Math.floor(Math.random() * 1000));
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const handleLogout = () => {
-    // In a real app, clear tokens/session here
-    router.push('/');
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await apiFetch('/auth/logout', { method: 'POST' });
+      await checkAuth(); // This will trigger the redirect in AuthContext
+      toast.success("Logged out successfully");
+    } catch (err) {
+      toast.error("Logout failed");
+      console.error(err);
+    } finally {
+      setIsLoggingOut(false);
+      setShowLogoutModal(false);
+    }
   };
 
   useEffect(() => {
-    const newSocket = io(process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000');
+    if (!user) return;
+
+    // Fetch message history
+    const fetchHistory = async () => {
+      try {
+        const history = await apiFetch('/channels/general/messages');
+        setMessages(history);
+      } catch (err) {
+        console.error('Failed to fetch messages:', err);
+      }
+    };
+
+    fetchHistory();
+
+    const newSocket = io(process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000', {
+      withCredentials: true,
+    });
     setSocket(newSocket);
+
+    // Join the general channel by default
+    newSocket.on('connect', () => {
+      newSocket.emit('join_channel', 'general');
+    });
 
     newSocket.on('message', (message: Message) => {
       setMessages((prev) => [...prev, message]);
@@ -41,7 +76,7 @@ export default function ChatPage() {
     return () => {
       newSocket.disconnect();
     };
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     scrollToBottom();
@@ -49,14 +84,28 @@ export default function ChatPage() {
 
   const sendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (input.trim() && socket) {
+    if (input.trim() && socket && user) {
       socket.emit('message', {
         text: input,
-        sender: username,
+        sender: user.username,
+        channel: 'general'
       });
       setInput('');
     }
   };
+
+  if (authLoading || !user) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+          <p className="text-gray-500 font-medium animate-pulse">Establishing secure connection...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const username = user.username;
 
   return (
     <div className="flex h-screen bg-white md:bg-gray-50 overflow-hidden font-sans">
@@ -160,12 +209,18 @@ export default function ChatPage() {
               <div className="flex flex-col w-full gap-3">
                 <button
                   onClick={handleLogout}
-                  className="w-full py-4 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-bold transition-all active:scale-[0.98] shadow-lg shadow-red-100 font-sans"
+                  disabled={isLoggingOut}
+                  className="w-full py-4 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-bold transition-all active:scale-[0.98] shadow-lg shadow-red-100 font-sans flex items-center justify-center gap-2"
                 >
-                  Yes, Log out
+                  {isLoggingOut ? (
+                    <Loader2 size={20} className="animate-spin" />
+                  ) : (
+                    "Yes, Log out"
+                  )}
                 </button>
                 <button
                   onClick={() => setShowLogoutModal(false)}
+                  disabled={isLoggingOut}
                   className="w-full py-4 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-2xl font-bold transition-all active:scale-[0.98] font-sans"
                 >
                   Cancel

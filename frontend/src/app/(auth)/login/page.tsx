@@ -3,13 +3,17 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Mail, Lock, ArrowRight, AlertCircle, Loader2 } from "lucide-react";
+import { Mail, Lock, ArrowRight, AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
 import { apiFetch } from '@/lib/api';
+import { toast } from 'sonner';
+import { useAuth } from '@/context/AuthContext';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { checkAuth } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -24,10 +28,12 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       });
 
-      // Success - Redirect to chat
-      router.push('/chat');
+      await checkAuth();
+      toast.success("Welcome back!");
     } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred');
+      const msg = err.message || 'An unexpected error occurred';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }
@@ -95,15 +101,21 @@ export default function LoginPage() {
                 <input
                   id="password"
                   name="password"
-                  type="password"
-                  autoComplete="current-password"
+                  type={showPassword ? 'text' : 'password'}
                   required
                   disabled={isLoading}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none block w-full pl-11 pr-4 py-3.5 border border-gray-200 rounded-2xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 sm:text-sm transition-all bg-white hover:bg-gray-50/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="appearance-none block w-full pl-11 pr-12 py-3.5 border border-gray-200 rounded-2xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 sm:text-sm transition-all bg-white hover:bg-gray-50/50 disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="••••••••"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-blue-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
             </div>
 
