@@ -34,7 +34,11 @@ export const registerUser = async (req: Request, res: Response) => {
     );
 
     const user = newUser.rows[0];
-    const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: '24h' });
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, username: user.username },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
 
     res.cookie(COOKIE_NAME, token, {
       httpOnly: true,
@@ -74,7 +78,11 @@ export const loginUser = async (req: Request, res: Response) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: '24h' });
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, username: user.username },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
 
     res.cookie(COOKIE_NAME, token, {
       httpOnly: true,

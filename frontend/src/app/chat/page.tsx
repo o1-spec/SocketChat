@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { io, Socket } from 'socket.io-client';
-import { Send, User, Hash, Settings, Search, MoreVertical, Paperclip, Smile, LogOut, X, AlertTriangle, MessageSquare, Loader2 } from 'lucide-react';
+import { Send, User, Hash, Settings, Search, MoreVertical, Paperclip, Smile, LogOut, X, AlertTriangle, MessageSquare, Loader2, Menu, File, ImageIcon, Download } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { apiFetch } from '@/lib/api';
 import { toast } from 'sonner';
@@ -13,6 +13,11 @@ interface Message {
   text: string;
   sender: string;
   createdAt: string;
+  file?: {
+    url: string;
+    name: string;
+    type: string;
+  };
 }
 
 export default function ChatPage() {
@@ -23,6 +28,9 @@ export default function ChatPage() {
   const [input, setInput] = useState('');
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -94,6 +102,46 @@ export default function ChatPage() {
     }
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !socket || !user) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}/upload/upload`, {
+        method: 'POST',
+        body: formData,
+        // credentials: 'include' is handled if we use apiFetch but apiFetch expects JSON
+      });
+
+      if (!response.ok) throw new Error('Upload failed');
+      
+      const data = await response.json();
+      
+      socket.emit('message', {
+        text: `Shared a file: ${file.name}`,
+        sender: user.username,
+        channel: 'general',
+        file: {
+          url: data.url,
+          name: data.filename,
+          type: data.type
+        }
+      });
+
+      toast.success("File uploaded successfully");
+    } catch (err) {
+      toast.error("Failed to upload file");
+      console.error(err);
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   if (authLoading || !user) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-gray-50">
@@ -108,9 +156,17 @@ export default function ChatPage() {
   const username = user.username;
 
   return (
-    <div className="flex h-screen bg-white md:bg-gray-50 overflow-hidden font-sans">
+    <div className="flex h-screen bg-white md:bg-gray-50 overflow-hidden font-sans relative">
+      {/* Mobile Sidebar Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-40 lg:hidden animate-in fade-in duration-300"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar - Channels/DMs */}
-      <aside className="w-72 bg-white border-r border-gray-200 hidden lg:flex flex-col">
+      <aside className={`fixed inset-y-0 left-0 w-72 bg-white border-r border-gray-200 z-50 lg:relative lg:flex flex-col transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         <div className="p-6 border-b border-gray-100 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-100">
@@ -118,7 +174,13 @@ export default function ChatPage() {
             </div>
             <span className="font-bold text-lg text-gray-900 tracking-tight">SocketChat</span>
           </div>
-          <button className="p-2 hover:bg-gray-50 rounded-xl text-gray-400 transition-colors">
+          <button 
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="p-2 hover:bg-gray-50 rounded-xl text-gray-400 transition-colors lg:hidden"
+          >
+            <X size={20} />
+          </button>
+          <button className="hidden lg:block p-2 hover:bg-gray-50 rounded-xl text-gray-400 transition-colors">
             <Settings size={20} />
           </button>
         </div>
@@ -233,9 +295,15 @@ export default function ChatPage() {
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col min-w-0 bg-white relative">
-        <header className="h-20 px-4 md:px-8 bg-white/80 backdrop-blur-md border-b border-gray-100 flex items-center justify-between sticky top-0 z-10">
+        <header className="h-20 px-4 md:px-8 bg-white/80 backdrop-blur-md border-b border-gray-100 flex items-center justify-between sticky top-0 z-10 transition-all duration-300">
           <div className="flex items-center gap-4 overflow-hidden">
-            <div className="lg:hidden w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-100">
+            <button 
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="lg:hidden p-2.5 bg-gray-50 border border-gray-100 rounded-xl text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all active:scale-95"
+            >
+              <Menu size={20} />
+            </button>
+            <div className="hidden lg:flex w-10 h-10 bg-blue-600 rounded-xl items-center justify-center shadow-lg shadow-blue-100">
               <Hash size={20} className="text-white" />
             </div>
             <div>
@@ -294,6 +362,32 @@ export default function ChatPage() {
                     }`}
                   >
                     {msg.text}
+                    {msg.file && (
+                      <div className={`mt-3 p-3 rounded-2xl flex items-center gap-3 border ${
+                        isLocal ? 'bg-blue-500/50 border-blue-400 text-white' : 'bg-gray-50 border-gray-100 text-gray-700'
+                      }`}>
+                        {msg.file.type.startsWith('image/') ? (
+                          <ImageIcon size={20} className={isLocal ? 'text-blue-100' : 'text-gray-400'} />
+                        ) : (
+                          <File size={20} className={isLocal ? 'text-blue-100' : 'text-gray-400'} />
+                        )}
+                        <div className="flex-1 overflow-hidden">
+                          <p className={`text-xs font-bold truncate`}>
+                            {msg.file.name}
+                          </p>
+                        </div>
+                        <a 
+                          href={`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000'}${msg.file.url}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className={`p-2 rounded-xl transition-colors ${
+                            isLocal ? 'hover:bg-blue-400' : 'hover:bg-gray-200 text-gray-500'
+                          }`}
+                        >
+                          <Download size={16} />
+                        </a>
+                      </div>
+                    )}
                   </div>
                   <span className={`text-[10px] text-gray-400 mt-2 opacity-0 group-hover:opacity-100 transition-opacity font-bold uppercase tracking-widest ${isLocal ? 'mr-2' : 'ml-8'}`}>
                     {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -308,8 +402,19 @@ export default function ChatPage() {
         <footer className="p-4 md:p-8 bg-white border-t border-gray-100">
           <form onSubmit={sendMessage} className="max-w-5xl mx-auto relative">
             <div className="flex items-center gap-3 bg-gray-50 border-2 border-transparent focus-within:border-blue-500 focus-within:bg-white rounded-4xl p-2 pr-4 transition-all duration-300 shadow-inner">
-              <button type="button" className="p-3 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all">
-                <Paperclip size={20} />
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleFileUpload} 
+                className="hidden" 
+              />
+              <button 
+                type="button" 
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                className="p-3 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all"
+              >
+                {isUploading ? <Loader2 size={20} className="animate-spin text-blue-600" /> : <Paperclip size={20} />}
               </button>
               <input
                 type="text"

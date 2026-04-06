@@ -3,9 +3,11 @@ import http from 'http';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
+import path from 'path';
 import { setupSocket } from './socket';
 import authRoutes from './routes/auth.routes';
 import channelRoutes from './routes/channel.routes';
+import uploadRoutes from './routes/upload.routes';
 import { createTables } from './models/init';
 
 dotenv.config();
@@ -24,9 +26,13 @@ app.use(cookieParser());
 
 createTables();
 
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/channels', channelRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // Health check
 app.get('/health', (req: Request, res: Response) => {

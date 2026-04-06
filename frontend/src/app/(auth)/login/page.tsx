@@ -106,7 +106,7 @@ export default function LoginPage() {
                   disabled={isLoading}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none block w-full pl-11 pr-12 py-3.5 border border-gray-200 rounded-2xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 sm:text-sm transition-all bg-white hover:bg-gray-50/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="appearance-none block text-black w-full pl-11 pr-12 py-3.5 border border-gray-200 rounded-2xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 sm:text-sm transition-all bg-white hover:bg-gray-50/50 disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="••••••••"
                 />
                 <button
@@ -178,8 +178,11 @@ export default function LoginPage() {
         <p className="mt-8 text-center text-sm text-gray-500">
           Don't have an account?{' '}
           <Link href="/register" className="font-bold text-blue-600 hover:text-blue-500 transition-colors">
-            Create one for free
+            Sign up for free
           </Link>
+        </p>
+        <p className="mt-1 text-center text-xs text-gray-400">
+          Create an account to start chatting with your team today.
         </p>
       </div>
     </div>

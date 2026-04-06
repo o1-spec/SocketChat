@@ -38,8 +38,8 @@ export default function RegisterPage() {
         body: JSON.stringify({ username, email, password }),
       });
 
-      await checkAuth();
-      toast.success("Welcome to SocketChat!");
+      toast.success("Registration successful! Please login.");
+      router.push('/login');
     } catch (err: any) {
       const msg = err.message || 'An unexpected error occurred';
       setError(msg);
@@ -91,7 +91,7 @@ export default function RegisterPage() {
                   disabled={isLoading}
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="appearance-none block w-full pl-11 pr-4 py-3.5 border border-gray-200 rounded-2xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 sm:text-sm transition-all bg-white hover:bg-gray-50/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="appearance-none text-black block w-full pl-11 pr-4 py-3.5 border border-gray-200 rounded-2xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 sm:text-sm transition-all bg-white hover:bg-gray-50/50 disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="johndoe"
                 />
               </div>
@@ -114,7 +114,7 @@ export default function RegisterPage() {
                   disabled={isLoading}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="appearance-none block w-full pl-11 pr-4 py-3.5 border border-gray-200 rounded-2xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 sm:text-sm transition-all bg-white hover:bg-gray-50/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="appearance-none text-black block w-full pl-11 pr-4 py-3.5 border border-gray-200 rounded-2xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 sm:text-sm transition-all bg-white hover:bg-gray-50/50 disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="name@company.com"
                 />
               </div>
@@ -136,7 +136,7 @@ export default function RegisterPage() {
                   disabled={isLoading}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none block w-full pl-11 pr-12 py-3.5 border border-gray-200 rounded-2xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 sm:text-sm transition-all bg-white hover:bg-gray-50/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="appearance-none text-black  block w-full pl-11 pr-12 py-3.5 border border-gray-200 rounded-2xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 sm:text-sm transition-all bg-white hover:bg-gray-50/50 disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="Min. 6 characters"
                 />
                 <button
@@ -165,7 +165,7 @@ export default function RegisterPage() {
                   disabled={isLoading}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="appearance-none block w-full pl-11 pr-12 py-3.5 border border-gray-200 rounded-2xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 sm:text-sm transition-all bg-white hover:bg-gray-50/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="appearance-none text-black block w-full pl-11 pr-12 py-3.5 border border-gray-200 rounded-2xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 sm:text-sm transition-all bg-white hover:bg-gray-50/50 disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="Repeat your password"
                 />
                 <button
@@ -231,8 +231,11 @@ export default function RegisterPage() {
         <p className="mt-8 text-center text-sm text-gray-500">
           Already have an account?{' '}
           <Link href="/login" className="font-bold text-blue-600 hover:text-blue-500 transition-colors">
-            Sign in here
+            Log in here
           </Link>
+        </p>
+        <p className="mt-1 text-center text-xs text-gray-400">
+          Sign in to access your existing messages and channels.
         </p>
       </div>
     </div>
