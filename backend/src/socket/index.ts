@@ -49,7 +49,6 @@ export const setupSocket = (server: http.Server) => {
     const user = (socket as any).user;
     
     try {
-      // Increment connection count for this user in Redis
       const count = await pubClient.hincrby(PRESENCE_KEY, user.userId, 1);
       
       if (count === 1) {
@@ -62,6 +61,15 @@ export const setupSocket = (server: http.Server) => {
 
     console.log(`User connected: ${user.username} (${socket.id})`);
 
+    // Handle typing indicator
+    socket.on('user.typing', (data: { channel: string; isTyping: boolean }) => {
+      socket.to(data.channel).emit('user.typing', {
+        userId: user.userId,
+        username: user.username,
+        isTyping: data.isTyping
+      });
+    });
+
     socket.on('channel.join', (channelName: string) => {
       socket.join(channelName);
       console.log(`User ${user.username} joined channel: ${channelName}`);
@@ -71,7 +79,6 @@ export const setupSocket = (server: http.Server) => {
       console.log('Message received:', data);
       
       try {
-        // Validation
         if (!data?.text || typeof data.text !== 'string') return;
         if (!data?.channel || typeof data.channel !== 'string') return;
 
@@ -80,7 +87,6 @@ export const setupSocket = (server: http.Server) => {
 
         if (!channelId) return;
 
-        // Persist to database with idempotency check using client_message_id
         const result = await pool.query(
           `INSERT INTO messages (channel_id, user_id, content, client_message_id) 
            VALUES ($1, $2, $3, $4) 
@@ -89,7 +95,6 @@ export const setupSocket = (server: http.Server) => {
           [channelId, user.userId, data.text, data.client_message_id]
         );
 
-        // If result.rows is empty, it means the message was a duplicate
         if (result.rows.length === 0) {
           console.log(`Duplicate message detected for client_message_id: ${data.client_message_id}`);
           return;

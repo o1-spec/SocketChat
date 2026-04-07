@@ -28,7 +28,9 @@ export default function ChatPage() {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<Record<string, { username: string; status: 'online' | 'offline' }>>({});
+  const [typingUsers, setTypingUsers] = useState<Record<string, string>>({}); // userId -> username
   const [input, setInput] = useState('');
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -96,6 +98,18 @@ export default function ChatPage() {
       });
     });
 
+    newSocket.on('user.typing', (data: { userId: string; username: string; isTyping: boolean }) => {
+      setTypingUsers((prev) => {
+        const next = { ...prev };
+        if (data.isTyping) {
+          next[data.userId] = data.username;
+        } else {
+          delete next[data.userId];
+        }
+        return next;
+      });
+    });
+
     return () => {
       newSocket.disconnect();
     };
@@ -105,9 +119,29 @@ export default function ChatPage() {
     scrollToBottom();
   }, [messages]);
 
+  const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInput(e.target.value);
+    
+    if (!socket) return;
+
+    socket.emit('user.typing', { channel: 'general', isTyping: true });
+
+    // Clear existing timeout
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+
+    typingTimeoutRef.current = setTimeout(() => {
+      socket.emit('user.typing', { channel: 'general', isTyping: false });
+    }, 2000);
+  };
+
   const sendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (input.trim() && socket && user) {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+        socket.emit('user.typing', { channel: 'general', isTyping: false });
+      }
+
       const clientMsgId = crypto.randomUUID();
       
       socket.emit('message.send', {
@@ -295,6 +329,19 @@ export default function ChatPage() {
           <div ref={messagesEndRef} />
         </main>
 
+        <div className="h-6 px-8 flex items-center">
+          {Object.keys(typingUsers).length > 0 && (
+            <div className="flex items-center gap-2 text-[10px] md:text-xs text-blue-500 font-bold animate-pulse tracking-wide">
+              <div className="flex gap-1">
+                <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                <span className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce" />
+              </div>
+              {Object.values(typingUsers).join(', ')} {Object.keys(typingUsers).length === 1 ? 'is' : 'are'} typing...
+            </div>
+          )}
+        </div>
+
         <footer className="p-4 md:p-8 bg-white border-t border-gray-100">
           <form onSubmit={sendMessage} className="max-w-5xl mx-auto relative">
             <div className="flex items-center gap-3 bg-gray-50 border-2 border-transparent focus-within:border-blue-500 focus-within:bg-white rounded-4xl p-2 pr-4 transition-all duration-300 shadow-inner">
@@ -315,7 +362,7 @@ export default function ChatPage() {
               <input
                 type="text"
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={handleTyping}
                 placeholder={`Type a message in #general...`}
                 className="flex-1 bg-transparent border-none focus:ring-0 text-sm md:text-base py-3 text-gray-800 placeholder-gray-400 font-medium"
               />
