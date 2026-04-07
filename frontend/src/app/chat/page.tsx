@@ -27,6 +27,7 @@ export default function ChatPage() {
   const { user, isLoading: authLoading, checkAuth } = useAuth();
   const [socket, setSocket] = useState<Socket | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [onlineUsers, setOnlineUsers] = useState<Record<string, { username: string; status: 'online' | 'offline' }>>({});
   const [input, setInput] = useState('');
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -79,6 +80,20 @@ export default function ChatPage() {
 
     newSocket.on('message.new', (message: Message) => {
       setMessages((prev) => [...prev, message]);
+    });
+
+    newSocket.on('user.status', (data: { userId: string, status: 'online' | 'offline', username?: string }) => {
+      setOnlineUsers((prev) => {
+        const next = { ...prev };
+        if (data.status === 'online' && data.username) {
+          next[data.userId] = { username: data.username, status: 'online' };
+        } else if (data.status === 'offline') {
+          if (next[data.userId]) {
+            next[data.userId] = { ...next[data.userId], status: 'offline' };
+          }
+        }
+        return next;
+      });
     });
 
     return () => {
@@ -172,14 +187,13 @@ export default function ChatPage() {
       )}
 
       {/* Sidebar - Channels/DMs */}
-      <ChatSidebar 
-        isOpen={isMobileMenuOpen} 
-        onClose={() => setIsMobileMenuOpen(false)}
-        username={user.username}
-        onLogout={() => setShowLogoutModal(true)}
-      />
-
-      {/* Logout Modal Overlay */}
+        <ChatSidebar 
+          isOpen={isMobileMenuOpen} 
+          onClose={() => setIsMobileMenuOpen(false)} 
+          username={user.username}
+          onlineUsers={onlineUsers}
+          onLogout={() => setShowLogoutModal(true)} 
+        />      {/* Logout Modal Overlay */}
       {showLogoutModal && (
         <div className="fixed inset-0 z-100 flex items-center justify-center px-4">
           <div 

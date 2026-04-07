@@ -4,10 +4,13 @@ interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
   username: string;
+  onlineUsers: Record<string, { username: string; status: 'online' | 'offline' }>;
   onLogout: () => void;
 }
 
-export default function ChatSidebar({ isOpen, onClose, username, onLogout }: SidebarProps) {
+export default function ChatSidebar({ isOpen, onClose, username, onlineUsers, onLogout }: SidebarProps) {
+  const onlineList = Object.entries(onlineUsers).filter(([_, info]) => info.status === 'online');
+  
   return (
     <aside className={`fixed inset-y-0 left-0 w-72 bg-white border-r border-gray-200 z-50 lg:relative lg:flex flex-col transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
       <div className="p-6 border-b border-gray-100 flex items-center justify-between">
@@ -53,15 +56,27 @@ export default function ChatSidebar({ isOpen, onClose, username, onLogout }: Sid
 
         <div>
           <div className="flex items-center justify-between px-2 mb-4">
-            <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.15em]">Reports</h3>
+            <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.15em]">Members</h3>
           </div>
           <div className="space-y-1">
-            {[ 'Monthly Stats', 'User Growth'].map((dm) => (
-              <button key={dm} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-500 hover:bg-gray-50 hover:text-gray-900 transition-all font-bold text-sm tracking-tight text-left">
-                <div className="w-2 h-2 rounded-full bg-green-500 shadow-sm shadow-green-200" />
-                {dm}
-              </button>
-            ))}
+            {onlineList.length > 0 ? (
+              onlineList.map(([id, info]) => (
+                <button 
+                  key={id} 
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-500 hover:bg-gray-50 hover:text-gray-900 transition-all font-bold text-sm tracking-tight text-left"
+                >
+                  <div className="relative shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 text-[10px] font-black uppercase">
+                      {info.username.charAt(0)}
+                    </div>
+                    <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-500 border-2 border-white shadow-sm" />
+                  </div>
+                  <span className="truncate">{info.username}</span>
+                </button>
+              ))
+            ) : (
+                <p className="px-3 py-2 text-xs text-gray-400 font-medium italic">No other members online</p>
+            )}
           </div>
         </div>
       </div>

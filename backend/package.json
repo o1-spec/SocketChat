@@ -4,6 +4,8 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "dev:1": "PORT=4000 ts-node-dev --respawn --transpile-only src/index.ts",
+    "dev:2": "PORT=4001 ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -13,9 +15,11 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@socket.io/redis-adapter": "^8.3.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/multer": "^2.1.0",
     "@types/pg": "^8.20.0",
+    "@types/redis": "^4.0.10",
     "bcryptjs": "^3.0.3",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
@@ -28,8 +32,10 @@
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.1.1",
     "pg": "^8.20.0",
+    "redis": "^5.11.0",
     "reflect-metadata": "^0.2.2",
     "socket.io": "^4.8.3",
+    "socket.io-redis": "^5.4.0",
     "typeorm": "^0.3.28"
   },
   "devDependencies": {

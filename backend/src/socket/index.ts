@@ -1,6 +1,8 @@
 import { Server } from 'socket.io';
 import http from 'http';
 import cookie from 'cookie';
+import { createAdapter } from '@socket.io/redis-adapter';
+import Redis from 'ioredis';
 import pool from '../config/db';
 import { verifyToken, JwtPayload } from '../config/auth';
 
@@ -13,9 +15,16 @@ export const setupSocket = (server: http.Server) => {
     }
   });
 
-  // Simple in-memory presence tracking (for single-server MVP)
-  // Maps userId -> Set of active socket IDs
-  const onlineUsers = new Map<string, Set<string>>();
+  const redisHost = process.env.REDIS_HOST || 'localhost';
+  const redisPort = parseInt(process.env.REDIS_PORT || '6379');
+
+  const pubClient = new Redis({ host: redisHost, port: redisPort });
+  const subClient = pubClient.duplicate();
+
+  io.adapter(createAdapter(pubClient, subClient));
+
+  // Use a Redis Hash to store presence: "presence" -> { userId: count }
+  const PRESENCE_KEY = 'presence';
 
   io.use(async (socket, next) => {
     try {
@@ -36,18 +45,22 @@ export const setupSocket = (server: http.Server) => {
     }
   });
 
-  io.on('connection', (socket) => {
+  io.on('connection', async (socket) => {
     const user = (socket as any).user;
     
-    // Add to presence map
-    if (!onlineUsers.has(user.userId)) {
-      onlineUsers.set(user.userId, new Set());
-      // First connection for this user - broadcast "user.online"
-      io.emit('user.status', { userId: user.userId, status: 'online', username: user.username });
+    try {
+      // Increment connection count for this user in Redis
+      const count = await pubClient.hincrby(PRESENCE_KEY, user.userId, 1);
+      
+      if (count === 1) {
+        // First connection across the entire cluster
+        io.emit('user.status', { userId: user.userId, status: 'online', username: user.username });
+      }
+    } catch (err) {
+      console.error('Redis presence error (connect):', err);
     }
-    onlineUsers.get(user.userId)?.add(socket.id);
 
-    console.log(`User connected: ${user.username} (${socket.id}). Online users: ${onlineUsers.size}`);
+    console.log(`User connected: ${user.username} (${socket.id})`);
 
     socket.on('channel.join', (channelName: string) => {
       socket.join(channelName);
@@ -96,17 +109,17 @@ export const setupSocket = (server: http.Server) => {
       }
     });
 
-    socket.on('disconnect', () => {
-      const userSockets = onlineUsers.get(user.userId);
-      if (userSockets) {
-        userSockets.delete(socket.id);
-        if (userSockets.size === 0) {
-          onlineUsers.delete(user.userId);
-          // Last connection closed - broadcast "user.offline"
+    socket.on('disconnect', async () => {
+      try {
+        const count = await pubClient.hincrby(PRESENCE_KEY, user.userId, -1);
+        if (count <= 0) {
+          await pubClient.hdel(PRESENCE_KEY, user.userId);
           io.emit('user.status', { userId: user.userId, status: 'offline' });
         }
+      } catch (err) {
+        console.error('Redis presence error (disconnect):', err);
       }
-      console.log(`User disconnected: ${user.username} (${socket.id}). Online users: ${onlineUsers.size}`);
+      console.log(`User disconnected: ${user.username} (${socket.id})`);
     });
   });
 
