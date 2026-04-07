@@ -23,6 +23,7 @@ export const createTables = async () => {
       channel_id UUID REFERENCES channels(id) ON DELETE CASCADE,
       user_id UUID REFERENCES users(id) ON DELETE SET NULL,
       content TEXT NOT NULL,
+      client_message_id UUID UNIQUE, -- For idempotency
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
 

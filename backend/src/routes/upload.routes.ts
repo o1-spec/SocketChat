@@ -4,7 +4,6 @@ import { authMiddleware } from '../middleware/auth.middleware';
 
 const router = Router();
 
-// Handle file uploads
 router.post('/upload', authMiddleware, upload.single('file'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: 'No file uploaded' });

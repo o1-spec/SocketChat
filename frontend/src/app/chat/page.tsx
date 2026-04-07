@@ -93,10 +93,13 @@ export default function ChatPage() {
   const sendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (input.trim() && socket && user) {
+      const clientMsgId = crypto.randomUUID();
+      
       socket.emit('message.send', {
         text: input,
         sender: user.username,
-        channel: 'general'
+        channel: 'general',
+        client_message_id: clientMsgId
       });
       setInput('');
     }
@@ -120,11 +123,13 @@ export default function ChatPage() {
       if (!response.ok) throw new Error('Upload failed');
       
       const data = await response.json();
+      const clientMsgId = crypto.randomUUID();
       
       socket.emit('message.send', {
         text: `Shared a file: ${file.name}`,
         sender: user.username,
         channel: 'general',
+        client_message_id: clientMsgId,
         file: {
           url: data.url,
           name: data.filename,
