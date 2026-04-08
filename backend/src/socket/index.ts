@@ -23,8 +23,12 @@ export const setupSocket = (server: http.Server) => {
 
   io.adapter(createAdapter(pubClient, subClient));
 
-  // Use a Redis Hash to store presence: "presence" -> { userId: count }
+  // EMERGENCY RESET: Clear local presence counts on backend startup
   const PRESENCE_KEY = 'presence';
+  
+  pubClient.del(PRESENCE_KEY).then(() => {
+    console.log('--- EMERGENCY --- Redis presence key wiped on startup.');
+  });
 
   io.use(async (socket, next) => {
     try {

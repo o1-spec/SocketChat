@@ -11,7 +11,11 @@ const PRESENCE_KEY = 'presence';
 router.get('/online', authMiddleware, async (req, res) => {
   try {
     const presenceHash = await pubClient.hgetall(PRESENCE_KEY);
+    console.log('--- PRESENCE DEBUG ---');
+    console.log('Raw Redis presenceHash:', presenceHash);
+    
     const onlineUserIds = Object.keys(presenceHash).filter(userId => parseInt(presenceHash[userId]) > 0);
+    console.log('Filtered Online UserIDs:', onlineUserIds);
     
     // Fetch usernames from individual user hashes
     const users = await Promise.all(onlineUserIds.map(async (userId) => {
@@ -19,6 +23,7 @@ router.get('/online', authMiddleware, async (req, res) => {
       return { userId, username: username || `User ${userId.slice(0, 4)}` };
     }));
     
+    console.log('Final Returned Users:', users);
     res.json(users);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch presence' });
