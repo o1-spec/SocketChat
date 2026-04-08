@@ -1,6 +1,6 @@
 import { Server } from 'socket.io';
 import http from 'http';
-import cookie from 'cookie';
+import * as cookie from 'cookie';
 import { createAdapter } from '@socket.io/redis-adapter';
 import Redis from 'ioredis';
 import pool from '../config/db';
@@ -28,26 +28,32 @@ export const setupSocket = (server: http.Server) => {
 
   io.use(async (socket, next) => {
     try {
-      const cookies = socket.handshake.headers.cookie;
-      if (!cookies) return next(new Error('Authentication error: No cookies'));
+      const cookieHeader = socket.handshake.headers.cookie;
+      if (!cookieHeader) return next(new Error('Authentication error: No cookies'));
 
-      const parsedCookies = cookie.parse(cookies);
+      const parsedCookies = cookie.parse(cookieHeader);
       const token = parsedCookies.token;
       if (!token) return next(new Error('Authentication error: No token'));
 
       const decoded = verifyToken(token);
       
+      console.log('Socket handshake authenticated for:', (decoded as any).username);
       (socket as any).user = decoded;
       
       next();
-    } catch (err) {
-      next(new Error('Authentication error: Invalid token'));
+    } catch (err: any) {
+      console.error('Socket middleware auth error:', err.message);
+      next(new Error(`Authentication error: ${err.message}`));
     }
   });
 
   io.on('connection', async (socket) => {
     const user = (socket as any).user;
     
+    // Always join #general by default for this demo
+    socket.join('general');
+    console.log(`User ${user.username} auto-joined #general`);
+
     try {
       const count = await pubClient.hincrby(PRESENCE_KEY, user.userId, 1);
       
@@ -59,6 +65,9 @@ export const setupSocket = (server: http.Server) => {
       console.error('Redis presence error (connect):', err);
     }
 
+    // Set username in Redis for presence retrieval
+    await pubClient.hset(`user:${user.userId}`, 'username', user.username);
+    
     console.log(`User connected: ${user.username} (${socket.id})`);
 
     // Handle typing indicator

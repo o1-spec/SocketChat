@@ -15,6 +15,7 @@ interface Message {
   text: string;
   sender: string;
   createdAt: string;
+  client_message_id?: string;
   file?: {
     url: string;
     name: string;
@@ -103,8 +104,24 @@ export default function ChatPage() {
 
     fetchHistory();
 
+    const fetchPresence = async () => {
+      try {
+        const data = await apiFetch('/presence/online');
+        const presenceMap: Record<string, { username: string; status: 'online' | 'offline' }> = {};
+        data.forEach((u: any) => {
+          presenceMap[u.userId] = { username: u.username, status: 'online' };
+        });
+        setOnlineUsers(presenceMap);
+      } catch (err) {
+        console.error('Failed to fetch initial presence:', err);
+      }
+    };
+
+    fetchPresence();
+
     const newSocket = io(process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000', {
       withCredentials: true,
+      transports: ['websocket'], // Force WebSocket to avoid sticky session issues without Nginx
     });
     setSocket(newSocket);
 
@@ -112,8 +129,20 @@ export default function ChatPage() {
       newSocket.emit('channel.join', 'general');
     });
 
+    newSocket.on('connect_error', (err) => {
+      console.error('Socket connection error:', err.message);
+      toast.error('Connection to chat server lost. Retrying...');
+    });
+
     newSocket.on('message.new', (message: Message) => {
-      setMessages((prev) => [...prev, message]);
+      console.log('New message received via socket:', message);
+      setMessages((prev) => {
+        // Prevent duplicate local state if user is the sender
+        if (prev.find(m => m.id === message.id || (m.client_message_id && m.client_message_id === (message as any).client_message_id))) {
+          return prev;
+        }
+        return [...prev, message];
+      });
     });
 
     newSocket.on('user.status', (data: { userId: string, status: 'online' | 'offline', username?: string }) => {
@@ -122,9 +151,7 @@ export default function ChatPage() {
         if (data.status === 'online' && data.username) {
           next[data.userId] = { username: data.username, status: 'online' };
         } else if (data.status === 'offline') {
-          if (next[data.userId]) {
-            next[data.userId] = { ...next[data.userId], status: 'offline' };
-          }
+          delete next[data.userId];
         }
         return next;
       });

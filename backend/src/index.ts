@@ -8,6 +8,7 @@ import { setupSocket } from './socket';
 import authRoutes from './routes/auth.routes';
 import channelRoutes from './routes/channel.routes';
 import uploadRoutes from './routes/upload.routes';
+import presenceRoutes from './routes/presence.routes';
 import { createTables } from './models/init';
 import { errorHandler } from './middleware/error.middleware';
 
@@ -32,6 +33,7 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/api/auth', authRoutes);
 app.use('/api/channels', channelRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/presence', presenceRoutes);
 
 // Health check
 app.get('/health', (req: Request, res: Response) => {
