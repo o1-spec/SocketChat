@@ -24,6 +24,9 @@ export const createTables = async () => {
       user_id UUID REFERENCES users(id) ON DELETE SET NULL,
       content TEXT NOT NULL,
       client_message_id UUID UNIQUE, -- For idempotency
+      file_url TEXT,
+      file_name TEXT,
+      file_type TEXT,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
 

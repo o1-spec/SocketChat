@@ -100,7 +100,12 @@ export const setupSocket = (server: http.Server) => {
       socket.emit('channel.joined', channelName);
     });
 
-    socket.on('message.send', async (data: { text: string; channel: string; client_message_id: string }) => {
+    socket.on('message.send', async (data: { 
+      text: string; 
+      channel: string; 
+      client_message_id: string;
+      file?: { url: string; name: string; type: string }
+    }) => {
       console.log('Message received:', data);
       
       try {
@@ -113,11 +118,19 @@ export const setupSocket = (server: http.Server) => {
         if (!channelId) return;
 
         const result = await pool.query(
-          `INSERT INTO messages (channel_id, user_id, content, client_message_id) 
-           VALUES ($1, $2, $3, $4) 
+          `INSERT INTO messages (channel_id, user_id, content, client_message_id, file_url, file_name, file_type) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7) 
            ON CONFLICT (client_message_id) DO NOTHING 
            RETURNING *`,
-          [channelId, user.userId, data.text, data.client_message_id]
+          [
+            channelId, 
+            user.userId, 
+            data.text, 
+            data.client_message_id,
+            data.file?.url || null,
+            data.file?.name || null,
+            data.file?.type || null
+          ]
         );
 
         if (result.rows.length === 0) {
@@ -132,7 +145,12 @@ export const setupSocket = (server: http.Server) => {
           text: savedMessage.content,
           sender: user.username,
           client_message_id: savedMessage.client_message_id,
-          createdAt: savedMessage.created_at
+          createdAt: savedMessage.created_at,
+          file: savedMessage.file_url ? {
+            url: savedMessage.file_url,
+            name: savedMessage.file_name,
+            type: savedMessage.file_type
+          } : undefined
         });
       } catch (err) {
         console.error('Error saving message:', err);

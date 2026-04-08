@@ -72,6 +72,8 @@ export default function ChatPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -236,7 +238,7 @@ export default function ChatPage() {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}/upload/upload`, {
         method: 'POST',
         body: formData,
-        // credentials: 'include' is handled if we use apiFetch but apiFetch expects JSON
+        credentials: 'include'
       });
 
       if (!response.ok) throw new Error('Upload failed');
@@ -278,7 +280,6 @@ export default function ChatPage() {
   }
 
   const username = user.username;
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:400';
 
   return (
     <div className="flex h-screen bg-white md:bg-gray-50 overflow-hidden font-sans relative">

@@ -41,29 +41,47 @@ export default function MessageBubble({ message, isLocal, backendUrl }: MessageB
         >
           {message.text}
           {message.file && (
-            <div className={`mt-3 p-3 rounded-2xl flex items-center gap-3 border ${
+            <div className={`mt-3 p-3 rounded-2xl flex flex-col gap-3 border ${
               isLocal ? 'bg-blue-500/50 border-blue-400 text-white' : 'bg-gray-50 border-gray-100 text-gray-700'
             }`}>
               {message.file.type.startsWith('image/') ? (
-                <ImageIcon size={20} className={isLocal ? 'text-blue-100' : 'text-gray-400'} />
+                <div className="relative group/img overflow-hidden rounded-xl bg-black/5 aspect-video flex items-center justify-center">
+                  <img 
+                    src={`${backendUrl}${message.file.url}`} 
+                    alt={message.file.name}
+                    className="max-w-full max-h-64 object-contain transition-transform duration-500 group-hover/img:scale-105"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://placehold.co/400x300?text=Image+Not+Found';
+                    }}
+                  />
+                </div>
               ) : (
-                <File size={20} className={isLocal ? 'text-blue-100' : 'text-gray-400'} />
+                <div className="flex items-center gap-3">
+                  <File size={20} className={isLocal ? 'text-blue-100' : 'text-gray-400'} />
+                  <div className="flex-1 overflow-hidden">
+                    <p className={`text-xs font-bold truncate`}>
+                      {message.file.name}
+                    </p>
+                  </div>
+                </div>
               )}
-              <div className="flex-1 overflow-hidden">
-                <p className={`text-xs font-bold truncate`}>
+              
+              <div className="flex items-center justify-between border-t border-white/10 pt-2 mt-1">
+                <span className="text-[10px] font-medium opacity-70 truncate max-w-37.5">
                   {message.file.name}
-                </p>
+                </span>
+                <a 
+                  href={`${backendUrl}${message.file.url}`} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className={`p-2 rounded-xl transition-colors flex items-center gap-2 text-[10px] font-bold ${
+                    isLocal ? 'hover:bg-blue-400 bg-blue-400/30' : 'hover:bg-gray-200 bg-gray-200/50 text-gray-500'
+                  }`}
+                >
+                  <Download size={14} />
+                  Download
+                </a>
               </div>
-              <a 
-                href={`${backendUrl}${message.file.url}`} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className={`p-2 rounded-xl transition-colors ${
-                  isLocal ? 'hover:bg-blue-400' : 'hover:bg-gray-200 text-gray-500'
-                }`}
-              >
-                <Download size={16} />
-              </a>
             </div>
           )}
         </div>
