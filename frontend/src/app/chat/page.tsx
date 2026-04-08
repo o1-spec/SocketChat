@@ -22,6 +22,37 @@ interface Message {
   };
 }
 
+const ArchitectureTooltip = () => (
+  <div className="bg-blue-900/90 text-white p-4 rounded-2xl shadow-2xl border border-blue-400/30 backdrop-blur-md max-w-sm animate-in fade-in slide-in-from-bottom-2 duration-500">
+    <div className="flex items-center gap-2 mb-2">
+      <div className="w-2 h-2 rounded-full bg-blue-400 animate-ping" />
+      <span className="text-[10px] font-black uppercase tracking-widest text-blue-200">System Design Flow</span>
+    </div>
+    <ul className="space-y-3 text-[11px] font-medium leading-relaxed">
+      <li className="flex gap-3">
+        <span className="text-blue-400 font-black">01</span>
+        <p><span className="text-blue-200 font-bold uppercase">Client:</span> Logic generates a <code className="bg-blue-800 px-1 rounded text-[9px]">client_message_id</code> (UUID) for <span className="text-blue-200 underline decoration-blue-500/50">Idempotency</span>.</p>
+      </li>
+      <li className="flex gap-3">
+        <span className="text-blue-400 font-black">02</span>
+        <p><span className="text-blue-200 font-bold uppercase">Nginx:</span> Routes request via <span className="text-blue-200 underline decoration-blue-500/50">Sticky Sessions</span> (ip_hash) to a specific Backend Instance.</p>
+      </li>
+      <li className="flex gap-3">
+        <span className="text-blue-400 font-black">03</span>
+        <p><span className="text-blue-200 font-bold uppercase">Backend:</span> Validates JWT from <span className="text-blue-200 underline decoration-blue-500/50">httpOnly Cookie</span> and attempts an Upsert in PostgreSQL.</p>
+      </li>
+      <li className="flex gap-3">
+        <span className="text-blue-400 font-black">04</span>
+        <p><span className="text-blue-200 font-bold uppercase">Redis:</span> Publishes event to the <span className="text-blue-200 underline decoration-blue-500/50">Pub/Sub Adapter</span>; all other cluster nodes catch it.</p>
+      </li>
+      <li className="flex gap-3">
+        <span className="text-blue-400 font-black">05</span>
+        <p><span className="text-blue-200 font-bold uppercase">Delivery:</span> Message is pushed via WebSockets to recipients globally in <span className="text-blue-200 font-bold">&lt; 50ms</span>.</p>
+      </li>
+    </ul>
+  </div>
+);
+
 export default function ChatPage() {
   const router = useRouter();
   const { user, isLoading: authLoading, checkAuth } = useAuth();
@@ -30,6 +61,7 @@ export default function ChatPage() {
   const [onlineUsers, setOnlineUsers] = useState<Record<string, { username: string; status: 'online' | 'offline' }>>({});
   const [typingUsers, setTypingUsers] = useState<Record<string, string>>({}); // userId -> username
   const [input, setInput] = useState('');
+  const [showArchitectureInfo, setShowArchitectureInfo] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -126,7 +158,6 @@ export default function ChatPage() {
 
     socket.emit('user.typing', { channel: 'general', isTyping: true });
 
-    // Clear existing timeout
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
     typingTimeoutRef.current = setTimeout(() => {
@@ -137,6 +168,9 @@ export default function ChatPage() {
   const sendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (input.trim() && socket && user) {
+      setShowArchitectureInfo(true);
+      setTimeout(() => setShowArchitectureInfo(false), 8000);
+      
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
         socket.emit('user.typing', { channel: 'general', isTyping: false });
@@ -343,45 +377,54 @@ export default function ChatPage() {
         </div>
 
         <footer className="p-4 md:p-8 bg-white border-t border-gray-100">
-          <form onSubmit={sendMessage} className="max-w-5xl mx-auto relative">
-            <div className="flex items-center gap-3 bg-gray-50 border-2 border-transparent focus-within:border-blue-500 focus-within:bg-white rounded-4xl p-2 pr-4 transition-all duration-300 shadow-inner">
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleFileUpload} 
-                className="hidden" 
-              />
-              <button 
-                type="button" 
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploading}
-                className="p-3 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all"
-              >
-                {isUploading ? <Loader2 size={20} className="animate-spin text-blue-600" /> : <Paperclip size={20} />}
-              </button>
-              <input
-                type="text"
-                value={input}
-                onChange={handleTyping}
-                placeholder={`Type a message in #general...`}
-                className="flex-1 bg-transparent border-none focus:ring-0 text-sm md:text-base py-3 text-gray-800 placeholder-gray-400 font-medium"
-              />
-              <button type="button" className="p-3 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all hidden sm:flex">
-                <Smile size={20} />
-              </button>
-              <button
-                type="submit"
-                disabled={!input.trim()}
-                className={`p-3.5 rounded-full transition-all shadow-lg active:scale-95 ${
-                  input.trim()
-                    ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-200'
-                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                }`}
-              >
-                <Send size={20} />
-              </button>
-            </div>
-          </form>
+          <div className="max-w-5xl mx-auto relative">
+            {/* System Design Visualizer */}
+            {showArchitectureInfo && (
+              <div className="absolute bottom-full mb-4 left-0 z-20">
+                <ArchitectureTooltip />
+              </div>
+            )}
+            
+            <form onSubmit={sendMessage} className="relative">
+              <div className="flex items-center gap-3 bg-gray-50 border-2 border-transparent focus-within:border-blue-500 focus-within:bg-white rounded-4xl p-2 pr-4 transition-all duration-300 shadow-inner">
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleFileUpload} 
+                  className="hidden" 
+                />
+                <button 
+                  type="button" 
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                  className="p-3 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all"
+                >
+                  {isUploading ? <Loader2 size={20} className="animate-spin text-blue-600" /> : <Paperclip size={20} />}
+                </button>
+                <input
+                  type="text"
+                  value={input}
+                  onChange={handleTyping}
+                  placeholder={`Type a message in #general...`}
+                  className="flex-1 bg-transparent border-none focus:ring-0 text-sm md:text-base py-3 text-gray-800 placeholder-gray-400 font-medium"
+                />
+                <button type="button" className="p-3 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all hidden sm:flex">
+                  <Smile size={20} />
+                </button>
+                <button
+                  type="submit"
+                  disabled={!input.trim()}
+                  className={`p-3.5 rounded-full transition-all shadow-lg active:scale-95 ${
+                    input.trim()
+                      ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-200'
+                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  <Send size={20} />
+                </button>
+              </div>
+            </form>
+          </div>
         </footer>
       </div>
     </div>
