@@ -11,7 +11,7 @@ interface SidebarProps {
 }
 
 export default function ChatSidebar({ isOpen, onClose, username, onlineUsers, onLogout, activeChannel, onChannelSelect }: SidebarProps) {
-  const onlineList = Object.entries(onlineUsers).filter(([_, info]) => info.status === 'online');
+  const onlineList = Object.entries(onlineUsers).filter(([_, info]) => info.status === 'online' && info.username !== username);
   
   return (
     <aside className={`fixed inset-y-0 left-0 w-72 bg-white border-r border-gray-200 z-50 lg:relative lg:flex flex-col transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>

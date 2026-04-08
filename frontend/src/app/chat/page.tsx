@@ -122,17 +122,25 @@ export default function ChatPage() {
 
     const newSocket = io(process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000', {
       withCredentials: true,
-      transports: ['websocket'], // Force WebSocket to avoid sticky session issues without Nginx
+      transports: ['websocket'],
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
     });
     setSocket(newSocket);
 
     newSocket.on('connect', () => {
+      console.log('Socket connected successfully');
       newSocket.emit('channel.join', activeChannel);
     });
 
     newSocket.on('connect_error', (err) => {
       console.error('Socket connection error:', err.message);
-      toast.error('Connection to chat server lost. Retrying...');
+      // Soften the error: only toast if it's a persistent failure
+      if (newSocket.active) {
+         console.warn('Temporary connection fluctuation');
+      } else {
+         toast.error('Connection to chat server lost. Retrying...');
+      }
     });
 
     newSocket.on('message.new', (message: Message) => {

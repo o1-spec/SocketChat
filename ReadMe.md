@@ -30,13 +30,15 @@ graph TD
 *   **Sticky Sessions**: Implemented via Nginx `ip_hash` to ensure the HTTP handshake and WebSocket upgrade happen on the same physical server.
 *   **Redis Adapter**: Bridges multiple backend instances. A message sent to Server A is published to Redis and broadcasted by Server B to its connected clients.
 
-#### 2. Authentication & Security
+2. **Authentication & Security**
 *   **C-S-A Pattern**: (Cookie-Session-Auth). JWTs are stored in `httpOnly` cookies to mitigate XSS attacks.
-*   **Handshake Authentication**: The WebSocket connection is authenticated during the initial HTTP upgrade by parsing the cookie header, preventing unauthorized socket connections.
+*   **Handshake Authentication**: The WebSocket connection is authenticated during the initial HTTP upgrade by parsing the cookie header.
+*   **Transport Strategy**: Optimized for `websocket` transport to ensure immediate protocol upgrade and avoid common sticky-session issues in distributed environments.
 
 #### 3. Message Reliability & Idempotency
 *   **Write-Through Persistence**: Messages are persisted to PostgreSQL *before* being broadcasted to ensure durability.
 *   **Idempotency**: Every message carries a `client_message_id` (UUID). The backend uses `INSERT ... ON CONFLICT DO NOTHING` to prevent duplicate messages during network retries.
+*   **Atomic Room Switching**: Implements a "Clean Exit" strategy where clients explicitly leave previous rooms before joining new ones, ensuring the `io.to(room)` fan-out is deterministic and synchronized.
 
 #### 4. Distributed Presence Tracking
 *   **Atomic Counters**: Uses Redis `HINCRBY` to track the number of active socket connections per user across the entire cluster.

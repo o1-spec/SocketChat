@@ -21,11 +21,15 @@ export const setupSocket = (server: http.Server) => {
   const pubClient = new Redis({ host: redisHost, port: redisPort });
   const subClient = pubClient.duplicate();
 
+  pubClient.on('error', (err) => console.error('Redis PubClient Error', err));
+  subClient.on('error', (err) => console.error('Redis SubClient Error', err));
+
   io.adapter(createAdapter(pubClient, subClient));
 
-  // EMERGENCY RESET: Clear local presence counts on backend startup
   const PRESENCE_KEY = 'presence';
   
+  // Only wipe if we are the primary instance or use a lock, 
+  // but for this dev demo, we clear once on startup.
   pubClient.del(PRESENCE_KEY).then(() => {
     console.log('--- EMERGENCY --- Redis presence key wiped on startup.');
   });
@@ -84,11 +88,19 @@ export const setupSocket = (server: http.Server) => {
     });
 
     socket.on('channel.join', (channelName: string) => {
+      // Clean up previous rooms
+      socket.rooms.forEach(room => {
+        if (room !== socket.id) socket.leave(room);
+      });
+      
       socket.join(channelName);
-      console.log(`User ${user.username} joined channel: ${channelName}`);
+      console.log(`User ${user.username} (socket: ${socket.id}) successfully joined room: ${channelName}`);
+      
+      // OPTIONAL: Acknowledge the join back to the client
+      socket.emit('channel.joined', channelName);
     });
 
-    socket.on('message.send', async (data) => {
+    socket.on('message.send', async (data: { text: string; channel: string; client_message_id: string }) => {
       console.log('Message received:', data);
       
       try {
