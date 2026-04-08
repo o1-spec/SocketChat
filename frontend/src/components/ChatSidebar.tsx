@@ -6,9 +6,11 @@ interface SidebarProps {
   username: string;
   onlineUsers: Record<string, { username: string; status: 'online' | 'offline' }>;
   onLogout: () => void;
+  activeChannel: string;
+  onChannelSelect: (channel: string) => void;
 }
 
-export default function ChatSidebar({ isOpen, onClose, username, onlineUsers, onLogout }: SidebarProps) {
+export default function ChatSidebar({ isOpen, onClose, username, onlineUsers, onLogout, activeChannel, onChannelSelect }: SidebarProps) {
   const onlineList = Object.entries(onlineUsers).filter(([_, info]) => info.status === 'online');
   
   return (
@@ -41,13 +43,14 @@ export default function ChatSidebar({ isOpen, onClose, username, onlineUsers, on
             {['general', 'engineering', 'design', 'support'].map((ch) => (
               <button
                 key={ch}
+                onClick={() => onChannelSelect(ch)}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 ${
-                  ch === 'general' 
+                  ch === activeChannel 
                     ? 'bg-blue-50 text-blue-700 shadow-sm shadow-blue-50' 
                     : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
                 }`}
               >
-                <Hash size={18} className={ch === 'general' ? 'text-blue-600' : 'text-gray-400'} />
+                <Hash size={18} className={ch === activeChannel ? 'text-blue-600' : 'text-gray-400'} />
                 <span className="text-sm font-bold tracking-tight">{ch}</span>
               </button>
             ))}

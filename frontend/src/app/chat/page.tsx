@@ -57,6 +57,7 @@ const ArchitectureTooltip = () => (
 export default function ChatPage() {
   const router = useRouter();
   const { user, isLoading: authLoading, checkAuth } = useAuth();
+  const [activeChannel, setActiveChannel] = useState('general');
   const [socket, setSocket] = useState<Socket | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<Record<string, { username: string; status: 'online' | 'offline' }>>({});
@@ -95,7 +96,7 @@ export default function ChatPage() {
 
     const fetchHistory = async () => {
       try {
-        const history = await apiFetch('/channels/general/messages');
+        const history = await apiFetch(`/channels/${activeChannel}/messages`);
         setMessages(history);
       } catch (err) {
         console.error('Failed to fetch messages:', err);
@@ -126,7 +127,7 @@ export default function ChatPage() {
     setSocket(newSocket);
 
     newSocket.on('connect', () => {
-      newSocket.emit('channel.join', 'general');
+      newSocket.emit('channel.join', activeChannel);
     });
 
     newSocket.on('connect_error', (err) => {
@@ -172,7 +173,7 @@ export default function ChatPage() {
     return () => {
       newSocket.disconnect();
     };
-  }, [user]);
+  }, [user, activeChannel]);
 
   useEffect(() => {
     scrollToBottom();
@@ -183,12 +184,12 @@ export default function ChatPage() {
     
     if (!socket) return;
 
-    socket.emit('user.typing', { channel: 'general', isTyping: true });
+    socket.emit('user.typing', { channel: activeChannel, isTyping: true });
 
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
     typingTimeoutRef.current = setTimeout(() => {
-      socket.emit('user.typing', { channel: 'general', isTyping: false });
+      socket.emit('user.typing', { channel: activeChannel, isTyping: false });
     }, 2000);
   };
 
@@ -200,7 +201,7 @@ export default function ChatPage() {
       
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
-        socket.emit('user.typing', { channel: 'general', isTyping: false });
+        socket.emit('user.typing', { channel: activeChannel, isTyping: false });
       }
 
       const clientMsgId = crypto.randomUUID();
@@ -208,7 +209,7 @@ export default function ChatPage() {
       socket.emit('message.send', {
         text: input,
         sender: user.username,
-        channel: 'general',
+        channel: activeChannel,
         client_message_id: clientMsgId
       });
       setInput('');
@@ -238,7 +239,7 @@ export default function ChatPage() {
       socket.emit('message.send', {
         text: `Shared a file: ${file.name}`,
         sender: user.username,
-        channel: 'general',
+        channel: activeChannel,
         client_message_id: clientMsgId,
         file: {
           url: data.url,
@@ -269,7 +270,7 @@ export default function ChatPage() {
   }
 
   const username = user.username;
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:400';
 
   return (
     <div className="flex h-screen bg-white md:bg-gray-50 overflow-hidden font-sans relative">
@@ -288,7 +289,10 @@ export default function ChatPage() {
           username={user.username}
           onlineUsers={onlineUsers}
           onLogout={() => setShowLogoutModal(true)} 
-        />      {/* Logout Modal Overlay */}
+          activeChannel={activeChannel}
+          onChannelSelect={setActiveChannel}
+        />
+      {/* Logout Modal Overlay */}
       {showLogoutModal && (
         <div className="fixed inset-0 z-100 flex items-center justify-center px-4">
           <div 
@@ -348,10 +352,15 @@ export default function ChatPage() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base md:text-lg font-bold text-gray-900 tracking-tight">#general</h2>
+                <h2 className="text-base md:text-lg font-bold text-gray-900 tracking-tight">#{activeChannel}</h2>
                 <span className="hidden md:inline px-2 py-0.5 bg-gray-100 text-[10px] font-bold text-gray-400 rounded-md uppercase tracking-wider">Public</span>
               </div>
-              <p className="text-xs text-gray-400 font-medium truncate">The default channel for everything</p>
+              <p className="text-xs text-gray-400 font-medium truncate">
+                {activeChannel === 'general' ? 'The default channel for everything' : 
+                 activeChannel === 'engineering' ? 'Discuss code, architecture, and bugs' :
+                 activeChannel === 'design' ? 'UI/UX, prototypes, and asset feedback' :
+                 'Customer success and user issues'}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2 md:gap-5">
@@ -432,7 +441,7 @@ export default function ChatPage() {
                   type="text"
                   value={input}
                   onChange={handleTyping}
-                  placeholder={`Type a message in #general...`}
+                  placeholder={`Type a message in #${activeChannel}...`}
                   className="flex-1 bg-transparent border-none focus:ring-0 text-sm md:text-base py-3 text-gray-800 placeholder-gray-400 font-medium"
                 />
                 <button type="button" className="p-3 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all hidden sm:flex">

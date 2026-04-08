@@ -27,10 +27,11 @@ export const createTables = async () => {
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
 
-    -- Seed general channel if it doesn't exist
-    INSERT INTO channels (name, description) 
-    VALUES ('general', 'The default channel for everything')
-    ON CONFLICT (name) DO NOTHING;
+    -- Seed default channels
+    INSERT INTO channels (name, description) VALUES ('general', 'The default channel for everything') ON CONFLICT (name) DO NOTHING;
+    INSERT INTO channels (name, description) VALUES ('engineering', 'Discuss code, architecture, and bugs') ON CONFLICT (name) DO NOTHING;
+    INSERT INTO channels (name, description) VALUES ('design', 'UI/UX, prototypes, and asset feedback') ON CONFLICT (name) DO NOTHING;
+    INSERT INTO channels (name, description) VALUES ('support', 'Customer success and user issues') ON CONFLICT (name) DO NOTHING;
   `;
 
   try {
